@@ -23,6 +23,7 @@ REGISTER_VERSION_SW = 0xFF
 
 #######################################################
 
+import sys
 from time import sleep
 import smbus
 
@@ -87,8 +88,12 @@ def cancelPowerOff():
     print("UPS power off cancelled")
     
 
-versions = getVersions()
-print("## RaspiUps ## (hw ver.{}, sw ver.{})".format(versions[0], versions[1]))
+try:
+    versions = getVersions()
+    print("## raspiUps ## (hw ver.{}, sw ver.{})".format(versions[0], versions[1]))
+except OSError:
+    print("raspiUps NOT detected")
+    sys.exit(1)
 
 batteryVoltage = getBatteryVoltage()
 print("Vbat:", batteryVoltage)
@@ -102,8 +107,8 @@ if onBattery:
 
 
 initiatePowerOff(30)
-sleep(10)
-cancelPowerOff()
+#sleep(10)
+#cancelPowerOff()
 
 
 
