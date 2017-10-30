@@ -40,7 +40,12 @@ def parseArguments():
             else:
                 doShutdown()
     else:
-        print('## raspiUps ## control script\n usage: pokus.py [batt] [onbatt] [ver] [time] [halt {SS}]')
+        print('## raspiUps ## control script\nusage: piUps.py [ver] [batt] [onbatt] [time] [halt [t]]')
+        print('\tver\t\tshows UPS version in form of hw.fw')
+        print('\tbatt\t\tshows battery voltage [V]')
+        print('\tonbatt\t\tshows whether we run on battery (1) or on external power (0)')
+        print('\ttime\t\tshows run time on battery in [s] or 0 if powered from external source')
+        print('\thalt [t]\tinitiate UPS power off after an optionally defined timeout (default 30s)')
 
 
 def parseArguments2():
@@ -49,7 +54,7 @@ def parseArguments2():
     parser.add_argument('-onbatt', '--onBattery', help='shows whether we run on battery (1) or on external power (0)', action='store_true', required=False)
     parser.add_argument('-ver', '--version', help='shows UPS version in form of hw.sw', action='store_true', required=False)
     parser.add_argument('-time', '--timeOnBattery', help='shows run time on battery or 0 if powered from external source', action='store_true', required=False)
-    parser.add_argument('-halt', '--shutdown', help='initiate UPS shutdown in defined time (default 30s)', action='append_const', dest='shutdown', const='30')
+    parser.add_argument('-halt', '--shutdown', help='initiates UPS shutdown in defined time (default 30s)', action='append_const', dest='shutdown', const='30')
 
     args = parser.parse_args()
     # args = parser.parse_args(['-halt', '20'])
