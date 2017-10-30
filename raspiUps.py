@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-from tkinter.messagebox import CANCEL
 
 #
 # raspiUps python interface
