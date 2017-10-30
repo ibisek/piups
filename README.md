@@ -1,4 +1,4 @@
 # raspiups
 Rapsberry Pi UPS
 
-More info will come soon.. no, really :)
+More info will come soon.. B)
