@@ -29,12 +29,12 @@ class UpsCheckerThread(threading.Thread):
         return True
 
     def deletePidFile(self):
-        os.remove(PID_FILE)
-        print('PID file removed')
+        if os.path.isfile(PID_FILE):
+            os.remove(PID_FILE)
+            print('PID file removed')
 
     def sigtermHandler(self, sigNum, frame):
         self.doRun = False
-        self.deletePidFile()
 
     def run(self):
         res = self.createPidFile()
@@ -43,10 +43,8 @@ class UpsCheckerThread(threading.Thread):
 
         print('Started with PID', os.getpid())
 
-        i = 0
-        while self.doRun and i< 10:
-            i += 1
-            print("T: %s" % (i))
+        while self.doRun:
+            print("T")
             time.sleep(1)
 
         self.deletePidFile()
