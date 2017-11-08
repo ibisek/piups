@@ -16,17 +16,23 @@ class UpsCheckerThread(threading.Thread):
     def __init__(self):
         super(UpsCheckerThread, self).__init__()
 
-        signal.signal(signal.SIGTERM, self.sigtermHandler) # listen for SIGTERM
+        signal.signal(signal.SIGTERM, self.sigtermHandler)  # listen for SIGTERM
 
-    def createPidFile(self):
-        if os.path.isfile(PID_FILE):
-            print("PID file already exists in '{}'".format(PID_FILE))
+    def isThisScriptAlreadyRunning(self):
+        try:
+            oldpid = open(PID_FILE, 'r').read()
+            cmdline = open(os.path.join('/proc', str(oldpid), 'cmdline'), 'rb').read().decode('ascii')
+            if sys.argv[0] in cmdline:
+                return True
+            else:
+                return False
+
+        except FileNotFoundError:  # not running with that old pid
             return False
 
-        open(PID_FILE, 'w+').write("{}\n".format(os.getpid()))
+    def createPidFile(self):
+        open(PID_FILE, 'w+').write(str(os.getpid()))
         print("PID file created as {}".format(PID_FILE))
-
-        return True
 
     def deletePidFile(self):
         if os.path.isfile(PID_FILE):
@@ -34,13 +40,15 @@ class UpsCheckerThread(threading.Thread):
             print('PID file removed')
 
     def sigtermHandler(self, sigNum, frame):
+        print("SIGTERM requested")
         self.doRun = False
 
     def run(self):
-        res = self.createPidFile()
-        if not res:
+        if self.isThisScriptAlreadyRunning():
+            print("One instance already running. Exiting..")
             sys.exit(1)
 
+        self.createPidFile()
         print('Started with PID', os.getpid())
 
         while self.doRun:
