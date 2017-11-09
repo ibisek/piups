@@ -1,12 +1,12 @@
 # raspiups
 (Rapsberry|Orange|..) Pi UPS
 
-More details will follow.
+More info will follow shortly.
 
 @see www.ibisek.com
 
 
-<h1>Software installation instructions</h1>:
+# Software installation instructions
 
 1. Get the control script from https://github.com/ibisek/piups
 
