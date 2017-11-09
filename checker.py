@@ -7,20 +7,19 @@ import signal
 import threading
 
 
-PID_FILE = "/tmp/piUps.pid"
 
+class RaspiUpsCheckerThread(threading.Thread):
+    PID_FILE = "/tmp/piUps.pid"
 
-class UpsCheckerThread(threading.Thread):
     doRun = True
 
     def __init__(self):
-        super(UpsCheckerThread, self).__init__()
-
+        super(RaspiUpsCheckerThread, self).__init__()
         signal.signal(signal.SIGTERM, self.sigtermHandler)  # listen for SIGTERM
 
     def isThisScriptAlreadyRunning(self):
         try:
-            oldpid = open(PID_FILE, 'r').read()
+            oldpid = open(self.PID_FILE, 'r').read()
             cmdline = open(os.path.join('/proc', str(oldpid), 'cmdline'), 'rb').read().decode('ascii')
             if sys.argv[0] in cmdline:
                 return True
@@ -31,12 +30,12 @@ class UpsCheckerThread(threading.Thread):
             return False
 
     def createPidFile(self):
-        open(PID_FILE, 'w+').write(str(os.getpid()))
-        print("PID file created as {}".format(PID_FILE))
+        open(self.PID_FILE, 'w+').write(str(os.getpid()))
+        print("PID file created as {}".format(self.PID_FILE))
 
     def deletePidFile(self):
-        if os.path.isfile(PID_FILE):
-            os.remove(PID_FILE)
+        if os.path.isfile(self.PID_FILE):
+            os.remove(self.PID_FILE)
             print('PID file removed')
 
     def sigtermHandler(self, sigNum, frame):
@@ -59,6 +58,10 @@ class UpsCheckerThread(threading.Thread):
 
 
 if __name__ == "__main__":
-    t = UpsCheckerThread()
+    t = RaspiUpsCheckerThread()
     t.start()
+    
+    time.sleep(4)
+    
+    print("KOHEU.")
 

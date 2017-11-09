@@ -1,4 +1,4 @@
 # raspiups
-Rapsberry Pi UPS
+(Rapsberry|Orange) Pi UPS
 
-More info will come soon.. B)
+More details will follow.. 
