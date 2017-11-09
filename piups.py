@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 #
-# raspiUps python interface
+# piUps python interface and control script
 #
 # @author ibisek
 # @version 2017-11-08
@@ -9,7 +9,15 @@
 
 ################# [ CONFIGURATION ] ###################
 
+# To enable system shutdown run you need to add this to /etc/sudoers:
+# <your username> ALL=(ALL) NOPASSWD: /sbin/shutdown
+
+HALT_AFTER_SECS_ON_BATT = 120   # 0 disables this functionality
+HALT_WHEN_BATT_VOLTAGE_BELOW = 3.4  # 0 disables this functionality; 3.4 is a reasonable value
+HALT_WHEN_BATTERY_LOW = False   # False disables this functionality
+
 #######################################################
+
 
 import os
 import sys
@@ -31,7 +39,11 @@ class SystemTools(object):
     @staticmethod
     def wall(message):
         subprocess.run(['/usr/bin/wall', message])
-
+        
+    @staticmethod
+    def halt():
+        subprocess.run(['/usr/bin/sudo', '/sbin/shutdown', '-h', 'now'])
+        sys.exit(0)
 
 '''
 An object to communicate with the UPS through I2C bus.
@@ -80,7 +92,7 @@ class Ups(object):
     @return LBO signal - 1 if battery voltage is low, 0 otherwise
     '''
 
-    def getBatteryLow(self):
+    def isBatteryLow(self):
         return self.bus.read_byte_data(self.I2C_ADDRESS, self.REGISTER_BATTERY_LOW)
     
     '''
@@ -131,14 +143,14 @@ class Ups(object):
 '''
 A thread that checks status of the UPS registers every second and responds accordingly
 '''
-class UpsCheckerThread(threading.Thread):
+class UpsObserverThread(threading.Thread):
     PID_FILE = "/tmp/piUps.pid"
 
     doRun = True
     prevOnBattery = False
 
     def __init__(self, ups, upsCli):
-        super(UpsCheckerThread, self).__init__()
+        super(UpsObserverThread, self).__init__()
         
         signal.signal(signal.SIGTERM, self.sigtermHandler)  # listen for SIGTERM
         self.ups = ups
@@ -175,7 +187,7 @@ class UpsCheckerThread(threading.Thread):
             sys.exit(1)
 
         self.createPidFile()
-        message = "UPS checker started with pid {}".format(os.getpid())
+        message = "UPS observer started with pid {}".format(os.getpid())
         SystemTools.log(message)
         print(message)
 
@@ -185,7 +197,7 @@ class UpsCheckerThread(threading.Thread):
             if onBattery:
                 if not self.prevOnBattery:
                     self.prevOnBattery = True
-                    message = "External power LOST, running on battery"
+                    message = "External power lost, running on battery"
                     SystemTools.log(message) 
                     SystemTools.wall(message)
 
@@ -193,6 +205,25 @@ class UpsCheckerThread(threading.Thread):
                 s = self.ups.getSecondsOnBattery()
                 if s % 5 == 0:
                     self.upsCli.logStatus()
+                    
+                if HALT_WHEN_BATTERY_LOW and self.ups.isBatteryLow():
+                    SystemTools.log("UPS battery too low ({}V). Initiating system shutdown.".format(self.ups.getBatteryVoltage()))
+                    self.ups.initiatePowerOff()
+                    SystemTools.halt()
+                    
+                if HALT_AFTER_SECS_ON_BATT > 0:
+                    timeOnBatt = self.ups.getSecondsOnBattery()
+                    if timeOnBatt > HALT_AFTER_SECS_ON_BATT:
+                        SystemTools.log("Runtime on battery ({}s) exceeded configured limit ({}s). Initiating system shutdown.".format(timeOnBatt, HALT_AFTER_SECS_ON_BATT))
+                        self.ups.initiatePowerOff()
+                        SystemTools.halt()
+                        
+                if HALT_WHEN_BATT_VOLTAGE_BELOW > 0:
+                    battVoltage = self.ups.getBatteryVoltage() 
+                    if battVoltage < HALT_WHEN_BATT_VOLTAGE_BELOW:
+                        SystemTools.log("Battery voltage ({}V) below configured limit ({}V). Initiating system shutdown.".format(battVoltage, HALT_WHEN_BATT_VOLTAGE_BELOW))
+                        self.ups.initiatePowerOff()
+                        SystemTools.halt()
                 
             elif not onBattery and self.prevOnBattery:
                 self.prevOnBattery = False
@@ -208,7 +239,7 @@ class UpsCheckerThread(threading.Thread):
             sleep(1)
 
         self.deletePidFile()
-        SystemTools.log("UPS checker terminated")
+        SystemTools.log("UPS observer terminated")
 
 
 '''
@@ -233,7 +264,7 @@ class UpsCli(object):
         print(self.ups.getSecondsOnBattery())
     
     def printBatteryLow(self):
-        print(self.ups.getBatteryLow())
+        print(self.ups.isBatteryLow())
     
     def doPowerOff(self, timeout=None):
         self.ups.initiatePowerOff(timeout)
@@ -254,7 +285,7 @@ class UpsCli(object):
         batteryVoltage = self.ups.getBatteryVoltage()
         onBattery = self.ups.onBattery()
         secsOnBattery = self.ups.getSecondsOnBattery()
-        batteryLow = self.ups.getBatteryLow()
+        batteryLow = self.ups.isBatteryLow()
         remainingTimeToPowerOff = self.ups.getRemainingPowerOffTime()
     
         message = "UPS status:\n battery voltage: {:.2f}V \n on battery: {}".format(batteryVoltage, onBattery)
@@ -271,10 +302,10 @@ class UpsCli(object):
         batteryVoltage = self.ups.getBatteryVoltage()
         onBattery = self.ups.onBattery()
         secsOnBattery = self.ups.getSecondsOnBattery()
-        batteryLow = self.ups.getBatteryLow()
+        batteryLow = self.ups.isBatteryLow()
         remainingTimeToPowerOff = self.ups.getRemainingPowerOffTime()
     
-        message = "UPS status: onBatt: {}; battV: {:.2f}V".format(onBattery, batteryVoltage)
+        message = "UPS status: onBatt: {}; battVoltage: {:.2f}V".format(onBattery, batteryVoltage)
         if onBattery:
             message = "{}; timeOnBatt: {:}s; battLow: {}".format(message, secsOnBattery, batteryLow)
             
@@ -283,8 +314,8 @@ class UpsCli(object):
 
         SystemTools.log(message)
         
-    def startCheckerThread(self):
-        t = UpsCheckerThread(self.ups, self)
+    def startObserverThread(self):
+        t = UpsObserverThread(self.ups, self)
         t.start()
 
     def printHelp(self):
@@ -323,7 +354,7 @@ class UpsCli(object):
             elif cmd == 'info' or cmd == 'status':
                 self.printAllInfo()
             elif cmd == 'start':
-                self.startCheckerThread()
+                self.startObserverThread()
             else:
                 self.printHelp()
         else:
