@@ -44,6 +44,10 @@ class SystemTools(object):
     def halt():
         subprocess.run(['/usr/bin/sudo', '/sbin/shutdown', '-h', 'now'])
         sys.exit(0)
+    
+    @staticmethod    
+    def kill(pid):
+        subprocess.run(['/bin/kill', str(pid)])
 
 '''
 An object to communicate with the UPS through I2C bus.
@@ -317,9 +321,24 @@ class UpsCli(object):
     def startObserverThread(self):
         t = UpsObserverThread(self.ups, self)
         t.start()
+        
+    def stopObserver(self):
+        if not os.path.isfile(UpsObserverThread.PID_FILE):
+            print("PID file not found in '{}'".format(UpsObserverThread.PID_FILE))
+            return
+        
+        text = open(UpsObserverThread.PID_FILE, 'r').read()
+        try:
+            pid = int(text)
+            print("Sending SIGTERM to PID {}. That shall do the job.".format(pid))
+            SystemTools.kill(pid)           
+            
+        except Exception as e:
+            print(e)
+            return
 
     def printHelp(self):
-        print('UPS control script\n usage: piUps.py [ver] [info|status] [batt] [onbatt] [time] [halt [t]] [cancel]')
+        print('UPS control script\n usage: piUps.py [info|status] [ver] [batt] [onbatt] [time] [halt [t]] [cancel] [start|stop]')
         print('\tinfo|status\tprints all available information from the UPS')
         print('\tver\t\tprints UPS version in form of hw.fw')
         print('\tbatt\t\tprints battery voltage [V]')
@@ -328,7 +347,8 @@ class UpsCli(object):
         print('\tbattlow\t\tprints (1) if battery voltage is too low, (0) otherwise')
         print('\tpoweroff [t]\tinitiates UPS power off after an optionally defined timeout (default 30s)')
         print('\tcancel\t\tcancels UPS power off countdown')
-        print('\tstart\t\tstarts UPS status checker process. This is to be called from cron at @reboot.')
+        print('\tstart\t\tstarts UPS status observer process. This is to be typically called from cron at @reboot')
+        print('\tstop\t\tterminates UPS status observer process')
     
     def parseArguments(self):
         if len(sys.argv) > 1:
@@ -355,6 +375,8 @@ class UpsCli(object):
                 self.printAllInfo()
             elif cmd == 'start':
                 self.startObserverThread()
+            elif cmd == 'stop':
+                self.stopObserver()
             else:
                 self.printHelp()
         else:
