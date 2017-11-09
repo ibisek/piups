@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-
 #
 # piUps python interface and control script
 #
@@ -292,8 +291,11 @@ class UpsCli(object):
         secsOnBattery = self.ups.getSecondsOnBattery()
         batteryLow = self.ups.isBatteryLow()
         remainingTimeToPowerOff = self.ups.getRemainingPowerOffTime()
-    
-        message = "UPS status:\n battery voltage: {:.2f}V \n on battery: {}".format(batteryVoltage, onBattery)
+        
+        observerRuning = True if self.readPidFromFile() else False
+        observerText = "up and running" if observerRuning else "not running"
+        
+        message = "UPS status:\n observer: {}\n battery voltage: {:.2f}V \n on battery: {}".format(observerText, batteryVoltage, onBattery)
         if onBattery:
             message = "{}\n time on battery: {:}s\n battery low: {}".format(message, secsOnBattery, batteryLow)
             
@@ -323,20 +325,28 @@ class UpsCli(object):
         t = UpsObserverThread(self.ups, self)
         t.start()
         
-    def stopObserver(self):
+        
+    def readPidFromFile(self):
         if not os.path.isfile(UpsObserverThread.PID_FILE):
-            print("PID file not found in '{}'".format(UpsObserverThread.PID_FILE))
-            return
+            return None
         
         text = open(UpsObserverThread.PID_FILE, 'r').read()
         try:
             pid = int(text)
-            print("Sending SIGTERM to PID {}. That shall do the job.".format(pid))
-            SystemTools.kill(pid)           
-            
+            return pid
         except Exception as e:
-            print(e)
+            print("Error when reading PID:", e)
+
+        return None
+        
+    def stopObserver(self):
+        pid = self.readPidFromFile()
+        if not pid:
+            print("PID file not found in '{}'".format(UpsObserverThread.PID_FILE))
             return
+        
+        print("Sending SIGTERM to PID {}. That shall do the job.".format(pid))
+        SystemTools.kill(pid)           
 
     def printHelp(self):
         print('UPS control script\n usage: piUps.py [info|status] [ver] [batt] [onbatt] [time] [halt [t]] [cancel] [start|stop]')
