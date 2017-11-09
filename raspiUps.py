@@ -11,14 +11,19 @@
 
 #######################################################
 
+import os
 import sys
 from time import sleep
+import datetime
+import signal
 import smbus
 import syslog
 import subprocess
+import threading
 
 
 class SystemTools(object):
+
     @staticmethod
     def log(message):
         syslog.syslog(syslog.LOG_INFO, message)
@@ -31,7 +36,7 @@ class SystemTools(object):
 '''
 An object to communicate with the UPS through I2C bus.
 '''
-class RaspiUps(object):
+class Ups(object):
     I2C_ADDRESS = 0x66
     
     REGISTER_ON_BATTERY = 0x01
@@ -74,6 +79,7 @@ class RaspiUps(object):
     '''
     @return LBO signal - 1 if battery voltage is low, 0 otherwise
     '''
+
     def getBatteryLow(self):
         return self.bus.read_byte_data(self.I2C_ADDRESS, self.REGISTER_BATTERY_LOW)
     
@@ -97,6 +103,7 @@ class RaspiUps(object):
     '''
     @return remaining seconds to UPS power off 
     '''
+
     def getRemainingPowerOffTime(self):
         return self.bus.read_byte_data(self.I2C_ADDRESS, self.REGISTER_TIME_TO_POWER_OFF)
     
@@ -119,14 +126,98 @@ class RaspiUps(object):
 
     def cancelPowerOff(self):
         self.bus.write_byte_data(self.I2C_ADDRESS, self.REGISTER_DO_POWER_OFF, 0x00)
+        
+
+'''
+A thread that checks status of the UPS registers every second and responds accordingly
+'''
+class UpsCheckerThread(threading.Thread):
+    PID_FILE = "/tmp/piUps.pid"
+
+    doRun = True
+    prevOnBattery = False
+
+    def __init__(self, ups, upsCli):
+        super(UpsCheckerThread, self).__init__()
+        
+        signal.signal(signal.SIGTERM, self.sigtermHandler)  # listen for SIGTERM
+        self.ups = ups
+        self.upsCli = upsCli
+
+    def isThisScriptAlreadyRunning(self):
+        try:
+            oldpid = open(self.PID_FILE, 'r').read()
+            cmdline = open(os.path.join('/proc', str(oldpid), 'cmdline'), 'rb').read().decode('ascii')
+            if sys.argv[0] in cmdline:
+                return True
+            else:
+                return False
+
+        except FileNotFoundError:  # not running with that old pid
+            return False
+
+    def createPidFile(self):
+        open(self.PID_FILE, 'w+').write(str(os.getpid()))
+        print("PID file created in {}".format(self.PID_FILE))
+
+    def deletePidFile(self):
+        if os.path.isfile(self.PID_FILE):
+            os.remove(self.PID_FILE)
+            print('PID file removed')
+
+    def sigtermHandler(self, sigNum, frame):
+        print("SIGTERM requested")
+        self.doRun = False
+
+    def run(self):
+        if self.isThisScriptAlreadyRunning():
+            print("An instance already running. Exiting..")
+            sys.exit(1)
+
+        self.createPidFile()
+        message = "UPS checker started with pid {}".format(os.getpid())
+        SystemTools.log(message)
+        print(message)
+
+        while self.doRun:
+            onBattery = self.ups.onBattery()
+            
+            if onBattery:
+                if not self.prevOnBattery:
+                    self.prevOnBattery = True
+                    message = "External power LOST, running on battery"
+                    SystemTools.log(message) 
+                    SystemTools.wall(message)
+
+                # log UPS status when running on battery:                    
+                s = self.ups.getSecondsOnBattery()
+                if s % 5 == 0:
+                    self.upsCli.logStatus()
+                
+            elif not onBattery and self.prevOnBattery:
+                self.prevOnBattery = False
+                message = "External power restored"
+                SystemTools.log(message) 
+                SystemTools.wall(message)
+                
+            # once an hour log UPS status:
+            now = datetime.datetime.now()
+            if now.minute == 0 and now.second == 0:
+                self.upsCli.logStatus()
+                
+            sleep(1)
+
+        self.deletePidFile()
+        SystemTools.log("UPS checker terminated")
+
 
 '''
 An object to parse command line arguments and perform appropriate actions. 
 '''
-class RaspiUpsCli(object):
+class UpsCli(object):
     
     def __init__(self):
-        self.ups = RaspiUps()
+        self.ups = Ups()
 
     def printBatteryVoltage(self):
         print("{:.2f}".format(self.ups.getBatteryVoltage()))
@@ -174,14 +265,30 @@ class RaspiUpsCli(object):
             message = "{}\n POWER OFF in {}s".format(message, remainingTimeToPowerOff)
     
         print(message)
-        
+
     def logStatus(self):
-        #TODO
-        pass
-        #SystemTools.log(message)
+        ver = self.ups.getVersions()
+        batteryVoltage = self.ups.getBatteryVoltage()
+        onBattery = self.ups.onBattery()
+        secsOnBattery = self.ups.getSecondsOnBattery()
+        batteryLow = self.ups.getBatteryLow()
+        remainingTimeToPowerOff = self.ups.getRemainingPowerOffTime()
+    
+        message = "UPS status: onBatt: {}; battV: {:.2f}V".format(onBattery, batteryVoltage)
+        if onBattery:
+            message = "{}; timeOnBatt: {:}s; battLow: {}".format(message, secsOnBattery, batteryLow)
+            
+        if remainingTimeToPowerOff > 0:
+            message = "{}; POWER OFF in {}s".format(message, remainingTimeToPowerOff)
+
+        SystemTools.log(message)
+        
+    def startCheckerThread(self):
+        t = UpsCheckerThread(self.ups, self)
+        t.start()
 
     def printHelp(self):
-        print('## raspiUps ## control script\nusage: piUps.py [ver] [batt] [onbatt] [time] [halt [t]] [cancel]')
+        print('UPS control script\nusage: piUps.py [ver] [batt] [onbatt] [time] [halt [t]] [cancel]')
         print('\tinfo\t\tprints all available information from the UPS')
         print('\tver\t\tprints UPS version in form of hw.fw')
         print('\tbatt\t\tprints battery voltage [V]')
@@ -190,7 +297,7 @@ class RaspiUpsCli(object):
         print('\tbattlow\t\tprints (1) if battery voltage is too low, (0) otherwise')
         print('\tpoweroff [t]\tinitiates UPS power off after an optionally defined timeout (default 30s)')
         print('\tcancel\t\tcancels UPS power off countdown')
-    
+        print('\tstart\t\tstarts UPS status checker process. This is to be called from cron at @reboot.')
     
     def parseArguments(self):
         if len(sys.argv) > 1:
@@ -215,6 +322,8 @@ class RaspiUpsCli(object):
                 self.cancelPowerOff()
             elif cmd == 'info':
                 self.printAllInfo()
+            elif cmd == 'start':
+                self.startCheckerThread()
             else:
                 self.printHelp()
         else:
@@ -223,6 +332,6 @@ class RaspiUpsCli(object):
 
 if __name__ == "__main__":
     
-    cli = RaspiUpsCli()
+    cli = UpsCli()
     cli.parseArguments()
     
