@@ -5,6 +5,7 @@
 #
 # @author ibisek
 # @version 2017-11-08
+# @see https://github.com/ibisek
 #
 
 ################# [ CONFIGURATION ] ###################
