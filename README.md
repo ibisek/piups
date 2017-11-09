@@ -20,7 +20,7 @@ More info will follow shortly.
 	```
 	sudo vim /etc/sudoers
 	```
-	and add
+	and add at the end of the file
 	```
 	<your username> ALL=(ALL) NOPASSWD: /sbin/shutdown
 	```
@@ -29,7 +29,7 @@ More info will follow shortly.
 	```
 	crontab -e
 	```
-	and add at the end
+	and append
 	```
 	@reboot /usr/bin/python3 /path/to/piups.py start & >/ dev/null
 	```
