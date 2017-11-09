@@ -1,4 +1,4 @@
-# raspiups
+# piups
 (Rapsberry|Orange|..) Pi UPS
 
 More info will follow shortly.
