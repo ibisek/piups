@@ -157,6 +157,8 @@ class UpsObserverThread(threading.Thread):
         super(UpsObserverThread, self).__init__()
         
         signal.signal(signal.SIGTERM, self.sigtermHandler)  # listen for SIGTERM
+        SystemTools.log("UPS observer listening for SIGTERM.")
+        
         self.ups = ups
         self.upsCli = upsCli
 
