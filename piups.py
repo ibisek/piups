@@ -198,49 +198,55 @@ class UpsObserverThread(threading.Thread):
         print(message)
 
         while self.doRun:
-            onBattery = self.ups.onBattery()
-            
-            if onBattery:
-                if not self.prevOnBattery:
-                    self.prevOnBattery = True
-                    message = "External power lost, running on battery"
-                    SystemTools.log(message) 
-                    SystemTools.wall(message)
-
-                # log UPS status when running on battery:                    
-                s = self.ups.getSecondsOnBattery()
-                if s % 5 == 0:
-                    self.upsCli.logStatus()
-                    
-                if HALT_WHEN_BATTERY_LOW and self.ups.isBatteryLow():
-                    SystemTools.log("UPS battery too low ({}V). Initiating system shutdown.".format(self.ups.getBatteryVoltage()))
-                    self.ups.initiatePowerOff()
-                    SystemTools.halt()
-                    
-                if HALT_AFTER_SECS_ON_BATT > 0:
-                    timeOnBatt = self.ups.getSecondsOnBattery()
-                    if timeOnBatt > HALT_AFTER_SECS_ON_BATT:
-                        SystemTools.log("Runtime on battery ({}s) exceeded configured limit ({}s). Initiating system shutdown.".format(timeOnBatt, HALT_AFTER_SECS_ON_BATT))
+            try:
+                onBattery = self.ups.onBattery()
+                
+                if onBattery:
+                    if not self.prevOnBattery:
+                        self.prevOnBattery = True
+                        message = "External power lost, running on battery"
+                        SystemTools.log(message) 
+                        SystemTools.wall(message)
+    
+                    # log UPS status when running on battery:                    
+                    s = self.ups.getSecondsOnBattery()
+                    if s % 5 == 0:
+                        self.upsCli.logStatus()
+                        
+                    if HALT_WHEN_BATTERY_LOW and self.ups.isBatteryLow():
+                        SystemTools.log("UPS battery too low ({}V). Initiating system shutdown.".format(self.ups.getBatteryVoltage()))
                         self.ups.initiatePowerOff()
                         SystemTools.halt()
                         
-                if HALT_WHEN_BATT_VOLTAGE_BELOW > 0:
-                    battVoltage = self.ups.getBatteryVoltage() 
-                    if battVoltage < HALT_WHEN_BATT_VOLTAGE_BELOW:
-                        SystemTools.log("Battery voltage ({}V) below configured limit ({}V). Initiating system shutdown.".format(battVoltage, HALT_WHEN_BATT_VOLTAGE_BELOW))
-                        self.ups.initiatePowerOff()
-                        SystemTools.halt()
-                
-            elif not onBattery and self.prevOnBattery:
-                self.prevOnBattery = False
-                message = "External power restored"
-                SystemTools.log(message) 
-                SystemTools.wall(message)
-                
-            # once an hour log UPS status:
-            now = datetime.datetime.now()
-            if now.minute == 0 and now.second == 0:
-                self.upsCli.logStatus()
+                    if HALT_AFTER_SECS_ON_BATT > 0:
+                        timeOnBatt = self.ups.getSecondsOnBattery()
+                        if timeOnBatt > HALT_AFTER_SECS_ON_BATT:
+                            SystemTools.log("Runtime on battery ({}s) exceeded configured limit ({}s). Initiating system shutdown.".format(timeOnBatt, HALT_AFTER_SECS_ON_BATT))
+                            self.ups.initiatePowerOff()
+                            SystemTools.halt()
+                            
+                    if HALT_WHEN_BATT_VOLTAGE_BELOW > 0:
+                        battVoltage = self.ups.getBatteryVoltage() 
+                        if battVoltage < HALT_WHEN_BATT_VOLTAGE_BELOW:
+                            SystemTools.log("Battery voltage ({}V) below configured limit ({}V). Initiating system shutdown.".format(battVoltage, HALT_WHEN_BATT_VOLTAGE_BELOW))
+                            self.ups.initiatePowerOff()
+                            SystemTools.halt()
+                    
+                elif not onBattery and self.prevOnBattery:
+                    self.prevOnBattery = False
+                    message = "External power restored"
+                    SystemTools.log(message) 
+                    SystemTools.wall(message)
+                    
+                # once an hour log UPS status:
+                now = datetime.datetime.now()
+                if now.minute == 0 and now.second == 0:
+                    self.upsCli.logStatus()
+
+            except Error as ex:
+                message = "Error in observer thread: {}".format(str(ex))
+                SystemTools.log(message)
+                print(message, file=sys.stderr)
                 
             sleep(1)
 
