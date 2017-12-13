@@ -377,7 +377,7 @@ class UpsCli(object):
         SystemTools.kill(pid)           
 
     def printHelp(self):
-        print('piUPS control script\n usage: piUps.py [info|status] [ver] [batt] [onbatt] [time] [halt [t]] [cancel] [start|stop]')
+        print('piUPS control script\n usage: piUps.py [info|status] [ver] [batt] [onbatt] [time] [halt [t]] [cancel] [start|stop] [halt]')
         print('\tinfo|status\tprints all available information from the UPS')
         print('\tver\t\tprints UPS version in form of hw.fw')
         print('\tbatt\t\tprints battery voltage [V]')
@@ -388,6 +388,7 @@ class UpsCli(object):
         print('\tcancel\t\tcancels UPS power off countdown')
         print('\tstart\t\tstarts UPS status observer process. This is to be typically called from cron at @reboot')
         print('\tstop\t\tterminates UPS status observer process')
+        print('\thalt\t\tinitiates [poweroff] with consequent immediate system shutdown')
     
     def parseArguments(self):
         if len(sys.argv) > 1:
@@ -416,6 +417,9 @@ class UpsCli(object):
                 self.startObserverThread()
             elif cmd == 'stop':
                 self.stopObserver()
+            elif cmd == 'halt':
+                self.doPowerOff()
+                SystemTools.halt()
             else:
                 self.printHelp()
         else:
