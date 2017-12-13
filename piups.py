@@ -66,15 +66,31 @@ class Ups(object):
 
     bus = smbus.SMBus(1)
 
+
+    '''
+    @return True if UPS present
+    '''
+    def isPresent(self):
+        (hwVer, swVer) = self.getVersions()
+        
+        if not hwVer or not swVer:
+            SystemTools.log("WARNING: piUPS was not detected!")
+            return False
+        
+        return True
+
     '''
     @return: (hwVersion, swVersion)
     '''
-
     def getVersions(self):
-        hwVer = self.bus.read_byte_data(self.I2C_ADDRESS, self.REGISTER_VERSION_HW)
-        swVer = self.bus.read_byte_data(self.I2C_ADDRESS, self.REGISTER_VERSION_SW)
-        return (hwVer, swVer)
-    
+        try:
+            hwVer = self.bus.read_byte_data(self.I2C_ADDRESS, self.REGISTER_VERSION_HW)
+            swVer = self.bus.read_byte_data(self.I2C_ADDRESS, self.REGISTER_VERSION_SW)
+            return (hwVer, swVer)
+        
+        except OSError as ex: # UPS is no present
+            return (None, None)
+
     '''
     @return: 1 if we are on battery; 0 if powered from and external power source (e.g. mains)
     '''
@@ -261,6 +277,10 @@ class UpsCli(object):
     
     def __init__(self):
         self.ups = Ups()
+        
+        if not self.ups.isPresent():
+            print("WARNING: piUPS was not detected!", file=sys.stderr)
+            sys.exit(1)
 
     def printBatteryVoltage(self):
         print("{:.2f}".format(self.ups.getBatteryVoltage()))
@@ -320,7 +340,7 @@ class UpsCli(object):
         batteryLow = self.ups.isBatteryLow()
         remainingTimeToPowerOff = self.ups.getRemainingPowerOffTime()
     
-        message = "UPS status: onBatt: {}; battVoltage: {:.2f}V".format(onBattery, batteryVoltage)
+        message = "piUPS status: onBatt: {}; battVoltage: {:.2f}V".format(onBattery, batteryVoltage)
         if onBattery:
             message = "{}; timeOnBatt: {:}s; battLow: {}".format(message, secsOnBattery, batteryLow)
             
@@ -357,7 +377,7 @@ class UpsCli(object):
         SystemTools.kill(pid)           
 
     def printHelp(self):
-        print('UPS control script\n usage: piUps.py [info|status] [ver] [batt] [onbatt] [time] [halt [t]] [cancel] [start|stop]')
+        print('piUPS control script\n usage: piUps.py [info|status] [ver] [batt] [onbatt] [time] [halt [t]] [cancel] [start|stop]')
         print('\tinfo|status\tprints all available information from the UPS')
         print('\tver\t\tprints UPS version in form of hw.fw')
         print('\tbatt\t\tprints battery voltage [V]')
