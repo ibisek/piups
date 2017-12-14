@@ -259,7 +259,7 @@ class UpsObserverThread(threading.Thread):
                 if now.minute == 0 and now.second == 0:
                     self.upsCli.logStatus()
 
-            except Error as ex:
+            except IOError as ex:
                 message = "Error in observer thread: {}".format(str(ex))
                 SystemTools.log(message)
                 print(message, file=sys.stderr)
