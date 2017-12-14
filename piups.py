@@ -61,6 +61,7 @@ class Ups(object):
     REGISTER_BATTERY_LOW = 0x06
     REGISTER_DO_POWER_OFF = 0x07
     REGISTER_TIME_TO_POWER_OFF = 0x08
+    REGISTER_UPTIME = 0x09   # 4B
     REGISTER_VERSION_HW = 0xFE
     REGISTER_VERSION_SW = 0xFF
 
@@ -138,6 +139,19 @@ class Ups(object):
 
     def getRemainingPowerOffTime(self):
         return self.bus.read_byte_data(self.I2C_ADDRESS, self.REGISTER_TIME_TO_POWER_OFF)
+
+    '''
+    @return: UPS up-time in seconds 
+    '''    
+    def getUptime(self):
+        b3 = self.bus.read_byte_data(self.I2C_ADDRESS, self.REGISTER_UPTIME)
+        b2 = self.bus.read_byte_data(self.I2C_ADDRESS, self.REGISTER_UPTIME + 1) 
+        b1 = self.bus.read_byte_data(self.I2C_ADDRESS, self.REGISTER_UPTIME + 2) 
+        b0 = self.bus.read_byte_data(self.I2C_ADDRESS, self.REGISTER_UPTIME + 3)
+         
+        upTime = (b3 << 24) | (b2 << 16) | (b1 << 8) | b0
+        
+        return upTime
     
     '''
     @param seconds: (optional) time after which to power off the UPS output; default 20
@@ -312,6 +326,9 @@ class UpsCli(object):
         SystemTools.log(message)
         SystemTools.wall(message)
     
+    def printUptime(self):
+        print(self.ups.getUptime())
+
     def printAllInfo(self):
         ver = self.ups.getVersions()
         batteryVoltage = self.ups.getBatteryVoltage()
@@ -319,6 +336,7 @@ class UpsCli(object):
         secsOnBattery = self.ups.getSecondsOnBattery()
         batteryLow = self.ups.isBatteryLow()
         remainingTimeToPowerOff = self.ups.getRemainingPowerOffTime()
+        upsUptime = self.ups.getUptime()
         
         observerRuning = True if self.readPidFromFile() else False
         observerText = "up and running" if observerRuning else "not running"
@@ -331,6 +349,7 @@ class UpsCli(object):
             message = "{}\n POWER OFF in {}s".format(message, remainingTimeToPowerOff)
     
         print(message)
+        
 
     def logStatus(self):
         ver = self.ups.getVersions()
@@ -389,6 +408,7 @@ class UpsCli(object):
         print('\tstart\t\tstarts UPS status observer process. This is to be typically called from cron at @reboot')
         print('\tstop\t\tterminates UPS status observer process')
         print('\thalt\t\tinitiates [poweroff] with consequent immediate system shutdown')
+        print('\tuptime\t\tprints UPS up time in [s]')
     
     def parseArguments(self):
         if len(sys.argv) > 1:
@@ -420,6 +440,8 @@ class UpsCli(object):
             elif cmd == 'halt':
                 self.doPowerOff()
                 SystemTools.halt()
+            elif cmd == 'uptime':
+                self.printUptime()
             else:
                 self.printHelp()
         else:
@@ -431,3 +453,4 @@ if __name__ == "__main__":
     cli = UpsCli()
     cli.parseArguments()
     
+
