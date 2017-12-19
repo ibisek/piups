@@ -28,26 +28,26 @@ import smbus
 import syslog
 import subprocess
 import threading
-
+import platform
 
 class SystemTools(object):
-
+    
     @staticmethod
     def log(message):
         syslog.syslog(syslog.LOG_INFO, message)
 
     @staticmethod
     def wall(message):
-        subprocess.run(['/usr/bin/wall', message])
+        subprocess.call(['/usr/bin/wall', message]) # (python <3.4 does not have subprocess.run)
         
     @staticmethod
     def halt():
-        subprocess.run(['/usr/bin/sudo', '/sbin/shutdown', '-h', 'now'])
+        subprocess.call(['/usr/bin/sudo', '/sbin/shutdown', '-h', 'now'])
         sys.exit(0)
     
     @staticmethod    
     def kill(pid):
-        subprocess.run(['/bin/kill', str(pid)])
+        subprocess.call(['/bin/kill', str(pid)])
 
 '''
 An object to communicate with the UPS through I2C bus.
