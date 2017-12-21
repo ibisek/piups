@@ -13,7 +13,7 @@ TODO
 1. Install package dependencies:
 	```
 	sudo apt-get install python3-smbus
-	'``
+	```
 	
 2. Get the control script from https://github.com/ibisek/piups
 
