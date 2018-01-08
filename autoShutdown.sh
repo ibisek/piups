@@ -1,12 +1,15 @@
 #!/bin/bash
-
+#
 # piUps automatic shutdown and poweroff script
 #
 # @author ibisek
 # @version 2017-01-08
 # @see https://github.com/ibisek
 #
-
+# Crontab entry:
+# crontab -e
+# @reboot /opt/piups/autoShutdown.sh & >/ dev/null
+#
 
 ################# [ CONFIGURATION ] ###################
 
@@ -19,7 +22,6 @@ SECONDS_TO_INITIATE_SHUTDOWN=10
 SECONDS_TO_UPS_POWER_OFF=20
 
 ################# [ MAIN ] ###################
-
 
 while [[ 1 ]]; do
 	secondsOnBattery=`python3 $UPS_SCRIPT_DIR/piups.py time`

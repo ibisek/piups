@@ -6,6 +6,11 @@
 # @version 2017-01-08
 # @see https://github.com/ibisek
 #
+# Crontab entry:
+# crontab -e
+# @reboot /opt/piups/autoShutdown.py & >/ dev/null
+#
+
 
 from piups import Ups
 from time import sleep
