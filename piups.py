@@ -159,7 +159,7 @@ class Ups(object):
     
     def initiatePowerOff(self, seconds=None):
         if seconds:
-            setPowerOffTime(seconds)
+            self.setPowerOffTime(seconds)
             sleep(0.1)
     
         self.bus.write_byte_data(self.I2C_ADDRESS, self.REGISTER_DO_POWER_OFF, 0x01)
