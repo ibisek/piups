@@ -1,4 +1,3 @@
-
 #!/usr/bin/python3
 #
 # piUps automatic shutdown and poweroff script
