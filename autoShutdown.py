@@ -12,13 +12,13 @@
 #
 
 
-from piups import Ups
+from piups import Ups, SystemTools
 from time import sleep
 
 ################# [ CONFIGURATION ] ###################
 
 # time to wait on battery for the external power to restore:
-SECONDS_TO_INITIATE_SHUTDOWN = 10
+SECONDS_TO_INITIATE_SHUTDOWN = 5
 
 # time after the UPS will cut the power (time required for pi shutdown + some reserve):
 SECONDS_TO_UPS_POWER_OFF = 30
@@ -35,4 +35,5 @@ if __name__ == "__main__":
                 secondsOnBattery = ups.getSecondsOnBattery()
                 if secondsOnBattery > SECONDS_TO_INITIATE_SHUTDOWN:
                     ups.initiatePowerOff(SECONDS_TO_UPS_POWER_OFF)
+                    SystemTools.halt()
             sleep(1)
