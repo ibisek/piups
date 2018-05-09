@@ -16,6 +16,21 @@ TODO
 	```
 	
 2. Get the control script from https://github.com/ibisek/piups
+	```
+	cd /opt
+	mkdir piups
+	cd piups
+	wget https://raw.githubusercontent.com/ibisek/piups/master/autoShutdown.py
+	wget https://raw.githubusercontent.com/ibisek/piups/master/autoShutdown.sh
+	wget https://raw.githubusercontent.com/ibisek/piups/master/piups.py
+	```
+	
+	or just
+	
+	```
+	git clone https://github.com/ibisek/piups.git
+	cd piups
+	```
 
 3. Test the UPS is connected and works fine:
 	```
