@@ -67,7 +67,7 @@ TODO
 
 # Pi shutdown with UPS
 
-To shutdown your pi correctly you need to execute
+Shutting down your pi correctly means executing
 
 	```
 	python3 piups.py halt
