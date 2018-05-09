@@ -69,8 +69,8 @@ TODO
 
 Shutting down your pi correctly means executing
 
-	```
-	python3 piups.py halt
-	```
+```
+python3 piups.py halt
+```
 
 Calling halt/shutdown/poweroff/<whateverelse> will just shutdown your pi but not turn off the UPS. In such case the UPS will turn off after configured limits without power - either timeout or battery level - whichever comes first.
