@@ -20,7 +20,9 @@ TODO
 	sudo raspi-config
 	```
 	
-	Go to "5 Interfacing Options" -> "I2C" -> select Yes.
+	Go to "5 Interfacing Options" -> "I2C" -> select Yes
+	
+	and reboot.
 	
 3. Get the control script from https://github.com/ibisek/piups
 	```
